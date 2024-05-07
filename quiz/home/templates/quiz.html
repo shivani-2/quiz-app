@@ -17,74 +17,80 @@
             <div class="col-md-6 mx-auto">
                 <h3>Give Quiz</h3>
                 <hr>
-                <div v-for="question in questions">
+                <div id="questionsContainer">
                    
-                    <p>[[question.question]]</p>
-                    <div class="form-check" v-for="answer in question.answers">
-                        <input @change="checkAnswer($event, question.uid)" :value="answer.answer" class="form-check-input" type="radio" name="exampleRadios" id="exampleRadios1" value="option1" checked>
-                        <label class="form-check-label" for="exampleRadios1">
-                            [[answer.answer]]
-                        </label>
-                    </div>
-                    <hr>
-
-                </div>
-                
+                </div>       
             </div>
         </div>
-        <!-- <div v-for="task in tasks">
-            [[task]]   
-        </div>       -->
     </div>
 
-   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-   <script> 
-        const app = Vue.createApp({
-        el: '#app',
-        delimiters: ['[[', ']]'],
-        data() {
-            return {
-                category : `{{category}}`,
-                questions : []
-                
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+   <script>
+        $(document).ready(function() {
+            const questionsContainer = $('#questionsContainer');    // Selecting the questions container
+            const category = "{{category}}";    // Getting the category from Django
+
+            // Function to fetch questions from the server
+            function getQuestion() { 
+                $.ajax({
+                    url: `/api/get-quiz/?category=${category}`,
+                    method: 'GET',
+                    success: function(result) {
+                        // Result is an object that contains all the data in JSON format
+                        renderQuestions(result.data);
+                    }
+                });
             }
-        },
-        methods : {
-            getQuestion(){
-                var _this = this
-                fetch(`/api/get-quiz/?category=${_this.category}`)
-                .then(response => response.json())
-                .then(result => {
-                    console.log(result)
-                    _this.questions = result.data
-                })
-            },
-            checkAnswer(event, uid){
-                this.questions.map(question => {
-                    // console.log(question)
-                    answers = question.answers
-                    for(var i=0; i < answers.length; i++){
-                        if(answers[i].answer == event.target.value){
-                            if(answers[i].is_correct){
-                                console.log("Your answer is correct")
-                                alert("Your answer is correct")
-                            }
-                            else {
-                                console.log("Your answer is incorrect")
-                                alert("Your answer is incorrect")
+
+            // Function to render questions on the page
+            function renderQuestions(questions) {
+                questionsContainer.empty(); // Clear previous questions
+                // Loop through each question and its answers
+                $.each(questions, function(index, question) {
+                    let questionDiv = $('<div></div>'); // Create a div for each question
+                    questionDiv.append(`<p>${question.question}</p>`); // Add question text
+                    //Loop  each answer of the current question and create radio buttons
+                    $.each(question.answers, function(index, answer) {
+                        let input = $('<input>').attr({
+                            type: 'radio',
+                            name: 'exampleRadios',
+                            value: answer.answer
+                        }).on('change', function(event) {
+                            // Call checkAnswer function on change to check if answer is correct
+                            checkAnswer(event, question.uid);
+                        });
+                        let label = $('<label></label>').text(answer.answer);  // Create label for answer
+                        let div = $('<div></div>').addClass('form-check'); // Create a div for form-check
+                        div.append(input, label); // Append input and label to form-check div
+                        questionDiv.append(div);  // Append form-check div to question div
+                    });
+                    questionDiv.append($('<hr>')); // Add a horizontal line after each question
+                    questionsContainer.append(questionDiv); // Append question div to questions container
+                });
+            }
+
+            // Function to check the answer when a radio button is selected
+            function checkAnswer(event, uid) {
+                const questions = $('#questionsContainer .form-check');
+                questions.each(function() {
+                    const inputs = $(this).find('input');
+                    inputs.each(function() {
+                        if ($(this).prop('checked')) {
+                            const isCorrect = $(this).data('is-correct');
+                            if (isCorrect) {
+                                console.log("Your answer is correct");
+                                alert("Your answer is correct");
+                            } else {
+                                console.log("Your answer is incorrect");
+                                alert("Your answer is incorrect");
                             }
                         }
-                    }
-                })
-                console.log(event.target.value, uid)
+                    });
+                });
             }
-        },
-        created() {
-            this.getQuestion()   
-        },
-        });
 
-        app.mount('#app')
+            getQuestion(); // Call getQuestion function when document is ready
+        });
    </script>
   </body>
 </html>
