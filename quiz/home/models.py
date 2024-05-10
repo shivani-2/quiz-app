@@ -21,6 +21,7 @@ class Question(BaseModel):
     category = models.ForeignKey(Category, related_name='category', on_delete=models.CASCADE)
     question = models.CharField(max_length=100)
     marks = models.IntegerField(default=5)
+    description = models.CharField(max_length=200, default="hi")    
 
     def __str__(self) -> str:
         return self.question
@@ -45,3 +46,4 @@ class Answer(BaseModel):
 
     def __str__(self) -> str:
         return self.answer
+    

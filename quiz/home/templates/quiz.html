@@ -31,7 +31,7 @@
             <h3>Give Quiz</h3>
             <hr>
             <!-- Timer Display -->
-            <div id="timer">Timer: <span id="timerValue">10</span>s</div>
+            <div id="timer">Time Remaining: <span id="timerValue">60</span>s</div>
             <!-- Question Container -->
             <div id="questionContainer"></div>
             <!-- Navigation Buttons -->
@@ -67,10 +67,13 @@
         const resultContent = $('#resultContent');
         // Initializing variables
         let currentQuestionIndex = 0;
-        let questions = [];
+        let questions_data = [];
         let timerInterval;
-        let timerValue = 10;
+        let timerValue = 60; // Total time for the entire quiz in seconds
         let userAnswers = {};
+        let total_marks = 0;
+        let actual_marks = 0;
+        let descriptions = [], questions_result =[];
 
         // Function to fetch questions from the server
         function getQuestions() {
@@ -79,7 +82,8 @@
                 method: 'GET',
                 success: function (result) {
                     // Storing questions in the array
-                    questions = result.data;
+                    questions_data = result.data;
+
                     // Displaying the first question
                     showQuestion(currentQuestionIndex);
                     // Starting the timer
@@ -95,7 +99,7 @@
             // Clearing previous question
             questionContainer.empty();
             // Getting the question object
-            const question = questions[index];
+            const question = questions_data[index];
             // Creating a div for the question
             const questionDiv = $('<div></div>');
             // Adding question text to the div
@@ -125,7 +129,7 @@
                 $('#nextBtn').show();
                 $('#prevBtn').hide();
                 $('#showResultBtn').hide();
-            } else if (currentQuestionIndex === questions.length - 1) {
+            } else if (currentQuestionIndex === questions_data.length - 1) {
                 // Last question: show Previous and Show Result buttons
                 $('#nextBtn').hide();
                 $('#prevBtn').show();
@@ -140,10 +144,9 @@
 
         // Event handler for the Next button
         $('#nextBtn').click(function () {
-            if (currentQuestionIndex < questions.length - 1) {
+            if (currentQuestionIndex < questions_data.length - 1) {
                 currentQuestionIndex++;
                 showQuestion(currentQuestionIndex);
-                resetTimer();
                 updateProgressBar();
             }
         });
@@ -153,7 +156,6 @@
             if (currentQuestionIndex > 0) {
                 currentQuestionIndex--;
                 showQuestion(currentQuestionIndex);
-                resetTimer();
                 updateProgressBar();
             }
         });
@@ -161,18 +163,29 @@
         // Function to check the answer when a radio button is selected
         function checkAnswer(event, index) {
             const selectedAnswer = $(event.target).siblings('label').text().toLowerCase();
-            const correctAnswer = questions[currentQuestionIndex].answers.find(answer => answer.is_correct).answer.toLowerCase();
+            const correctAnswer = questions_data[currentQuestionIndex].answers.find(answer => answer.is_correct).answer.toLowerCase();
 
             // Check if the selected answer is correct
             const isCorrect = (selectedAnswer === correctAnswer);
 
+            descriptions.push(questions_data[currentQuestionIndex].description);
+            questions_result.push(questions_data[currentQuestionIndex].question)
+            
+            //Calculate total marks based on number of questions
+            total_marks = total_marks + (questions_data[currentQuestionIndex].marks)
+
+            //Calculate Actual marks based on correct answers
+            if(isCorrect){
+                actual_marks = actual_marks + (questions_data[currentQuestionIndex].marks)
+            }
+            
             // Update userAnswers object with the selected answer and correctness status
             userAnswers[index] = {
+                correctAnswer: correctAnswer,
                 selectedAnswer: selectedAnswer,
                 isCorrect: isCorrect
             };
         }
-
 
         // Event handler for the Show Result button
         $('#showResultBtn').click(function () {
@@ -183,8 +196,8 @@
         // Function to display the quiz result
         function displayResult() {
             // Hide the question container and navigation buttons
-            $('#questionContainer').hide();
-            $('#navButtons').hide();
+            questionContainer.hide();
+            navButtons.hide();
 
             // Clear the result container content
             $('.main-container').empty();
@@ -192,23 +205,38 @@
             // Add the heading and horizontal line
             $('.main-container').append('<h1>QUIZ RESULTS</h1><hr>');
 
+            // Calculate the score
+            const score = Object.values(userAnswers).filter(answer => answer.isCorrect).length;
+            const totalQuestions = Object.keys(userAnswers).length;
+
+            // Create and append the score and marks card
+            const scoreCard = $(`<div class="score-card col-md-6 blockquote" >Score: ${score}/${totalQuestions}</div>`);
+            $('.main-container').append(scoreCard);
+
+            const marksCard = $(`<div class="marks-card col-md-6 blockquote"> Marks: ${actual_marks}/${total_marks} </div>`);
+            $('.main-container').append(marksCard);
+
             // Initialize a variable to track the question number
-            let questionNumber = 1;
+            let questionNumber = 1, i=0;
 
             // Iterate over each question in userAnswers and display the result
             Object.keys(userAnswers).forEach(function(index) {
-                const question = userAnswers[index];
+                const result = userAnswers[index];
                 const questionDiv = $('<div></div>');
                 // Display the question number
-                questionDiv.append(`<p>Question ${questionNumber}: ${question.selectedAnswer}</p>`);
-                if (question.isCorrect) {
-                    questionDiv.append('<p>Your answer is correct</p>');
+                questionDiv.append(`<p>Question ${questionNumber}: ${questions_result[i]} <br> Your answer: ${result.selectedAnswer}</p>`);
+                if (result.isCorrect) {
+                    // questionDiv.append(`<p>Your answer is correct</p>`);
+                    questionDiv.css({'background-color': 'lightgreen', 'padding': '10px', 'margin':'4px'});
                 } else {
-                    questionDiv.append('<p>Your answer is incorrect</p>');
+                    // questionDiv.append(`<p>Your answer is incorrect</p>`);
+                    questionDiv.css({'background-color': 'lightcoral', 'padding': '10px', 'margin':'4px'});
                 }
+                questionDiv.append(`<p>Correct Answer: ${result.correctAnswer}</p>`);
+                questionDiv.append(`<p>Description: ${descriptions[i]} </p>`);
                 $('.main-container').append(questionDiv);
                 // Increment the question number
-                questionNumber++;
+                questionNumber++; i++;
             });
 
             // Show the quiz result container
@@ -224,32 +252,14 @@
                     clearInterval(timerInterval);
                     // Handle time up event
                     console.log("Time's up!");
-                    goToNextQuestion();
+                    displayResult(); // Display result when time's up
                 }
             }, 1000);
         }
 
-        // Function to reset the timer
-        function resetTimer() {
-            clearInterval(timerInterval);
-            timerValue = 10;
-            $('#timerValue').text(timerValue);
-            startTimer();
-        }
-
-        // Function to navigate to the next question
-        function goToNextQuestion() {
-            if (currentQuestionIndex < questions.length - 1) {
-                currentQuestionIndex++;
-                showQuestion(currentQuestionIndex);
-                resetTimer();
-                updateProgressBar();
-            }
-        }
-
         // Function to update the progress bar
         function updateProgressBar() {
-            const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+            const progress = ((currentQuestionIndex + 1) / questions_data.length) * 100;
             $('#progressBar').css('width', progress + '%').attr('aria-valuenow', progress);
         }
 

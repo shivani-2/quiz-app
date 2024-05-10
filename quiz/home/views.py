@@ -61,6 +61,7 @@ def get_quiz(request):
                 "uid": q_obj.uid,
                 "category": q_obj.category.category_name,
                 "question": q_obj.question,
+                "description": q_obj.description,
                 "marks": q_obj.marks,
                 "answers": q_obj.get_answers(),
                 #answer:question_answer.answer,  
